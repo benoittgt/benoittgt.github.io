@@ -2,8 +2,8 @@
 <feed xmlns="http://www.w3.org/2005/Atom" xml:base="en">
 	<title>Benoit Tigeot&#39;s blog</title>
 	<subtitle>Ruby on Rails, PostgreSQL, and more.</subtitle>
-	<link href="https://benoittgt.github.io/eleventy-base-blog/feed/feed.xml" rel="self"/>
-	<link href="https://benoittgt.github.io/eleventy-base-blog/"/>
+	<link href="https://benoittgt.github.io/feed/feed.xml" rel="self"/>
+	<link href="https://benoittgt.github.io/"/>
 	<updated>2024-09-19T00:00:00Z</updated>
 	<id>https://benoittgt.github.io/</id>
 	<author>
@@ -13,9 +13,9 @@
 	
 	<entry>
 		<title>As Rails developers, why we are excited about PostgreSQL 17</title>
-		<link href="https://benoittgt.github.io/eleventy-base-blog/blog/postgres_17_rails/"/>
+		<link href="https://benoittgt.github.io/blog/postgres_17_rails/"/>
 		<updated>2024-09-19T00:00:00Z</updated>
-		<id>https://benoittgt.github.io/eleventy-base-blog/blog/postgres_17_rails/</id>
+		<id>https://benoittgt.github.io/blog/postgres_17_rails/</id>
 		<content type="html">&lt;p&gt;At the time of writing this article, PostgreSQL 17 is nearly out. &lt;a href=&quot;https://www.postgresql.org/about/news/postgresql-17-rc1-released-2926/&quot;&gt;On September 5th, the first release candidate was published&lt;/a&gt;. The final release is expected on September 26th, but we can already explain why we’ve been eagerly awaiting this release since 1 year.&lt;/p&gt;
 &lt;p&gt;At &lt;a href=&quot;https://www.lifen.fr/&quot;&gt;Lifen&lt;/a&gt;, we’ve loved Rails from the beginning. We have several Rails applications, each with different scopes and teams, all using PostgreSQL as the main database. Some of these applications handle a significant amount of traffic, and their databases need to be properly monitored. This is done by the infrastructure team and the developers themselves using PgAnalyze, Grafana and sometimes AWS console with &amp;quot;Performance Insight&amp;quot;.&lt;/p&gt;
 &lt;p&gt;More than a year ago, we started monitoring the 95th and 99th percentile response times (p95, p99) on an endpoint that was experiencing timeouts. These p99 times were important because they involved a client with significantly more data. While investigating the queries in AppSignal, we quickly found that the issue was on the database side, as is often the case.&lt;/p&gt;
