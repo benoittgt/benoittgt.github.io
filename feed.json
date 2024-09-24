@@ -3,7 +3,7 @@
 	"title": "Benoit Tigeot&#39;s blog",
 	"language": "en",
 	"home_page_url": "https://benoittgt.github.io/",
-	"feed_url": "https://benoittgt.github.io/feed/feed.json",
+	"feed_url": "https://benoittgt.github.io/feed.json",
 	"description": "Ruby on Rails, PostgreSQL, and more.",
 	"author": {
 		"name": "Benoit Tigeot",

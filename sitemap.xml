@@ -17,6 +17,16 @@
 	</url>
 	
 	<url>
+		<loc>https://benoittgt.github.io/feed.xml</loc>
+		<lastmod>2024-09-24</lastmod>
+	</url>
+	
+	<url>
+		<loc>https://benoittgt.github.io/feed.json</loc>
+		<lastmod>2024-09-24</lastmod>
+	</url>
+	
+	<url>
 		<loc>https://benoittgt.github.io/</loc>
 		<lastmod>2024-09-24</lastmod>
 	</url>

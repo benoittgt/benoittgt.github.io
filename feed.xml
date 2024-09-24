@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom" xml:base="en">
 	<title>Benoit Tigeot&#39;s blog</title>
 	<subtitle>Ruby on Rails, PostgreSQL, and more.</subtitle>
-	<link href="https://benoittgt.github.io/feed/feed.xml" rel="self"/>
+	<link href="https://benoittgt.github.io/feed.xml" rel="self"/>
 	<link href="https://benoittgt.github.io/"/>
 	<updated>2024-09-19T00:00:00Z</updated>
 	<id>https://benoittgt.github.io/</id>
