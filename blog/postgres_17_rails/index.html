@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>As Rails developers, why we are excited about PostgreSQL 17</title>
+		<meta name="description" content="Why we are excited about PostgreSQL 17 for our Rails applications.">
+		<link rel="alternate" href="/eleventy-base-blog/feed/feed.xml" type="application/atom+xml" title="Benoit Tigeot&#39;s blog">
+		<link rel="alternate" href="/eleventy-base-blog/feed/feed.json" type="application/json" title="Benoit Tigeot&#39;s blog">
+		
+		<style>/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
+}
+* { box-sizing: border-box; }
+/* Defaults */
+:root {
+	--font-family: -apple-system, system-ui, sans-serif;
+	--font-family-monospace: Consolas, Menlo, Monaco, Andale Mono WT, Andale Mono, Lucida Console, Lucida Sans Typewriter, DejaVu Sans Mono, Bitstream Vera Sans Mono, Liberation Mono, Nimbus Mono L, Courier New, Courier, monospace;
+}
+
+/* Theme colors */
+:root {
+	--color-gray-20: #e0e0e0;
+	--color-gray-50: #C0C0C0;
+	--color-gray-90: #333;
+
+	--background-color: #fff;
+
+	--text-color: var(--color-gray-90);
+	--text-color-link: #082840;
+	--text-color-link-active: #5f2b48;
+	--text-color-link-visited: #17050F;
+
+	--syntax-tab-size: 2;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color-gray-20: #e0e0e0;
+		--color-gray-50: #C0C0C0;
+		--color-gray-90: #dad8d8;
+
+		/* --text-color is assigned to --color-gray-_ above */
+		--text-color-link: #1493fb;
+		--text-color-link-active: #6969f7;
+		--text-color-link-visited: #a6a6f8;
+
+		--background-color: #15202b;
+	}
+}
+
+
+/* Global stylesheet */
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	padding: 0;
+	margin: 0 auto;
+	font-family: var(--font-family);
+	color: var(--text-color);
+	background-color: var(--background-color);
+}
+html {
+	overflow-y: scroll;
+}
+body {
+	max-width: 40em;
+}
+
+/* https://www.a11yproject.com/posts/how-to-hide-content/ */
+.visually-hidden {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
+p:last-child {
+	margin-bottom: 0;
+}
+p {
+	line-height: 1.5;
+}
+
+li {
+	line-height: 1.5;
+}
+
+a[href] {
+	color: var(--text-color-link);
+}
+a[href]:visited {
+	color: var(--text-color-link-visited);
+}
+a[href]:hover,
+a[href]:active {
+	color: var(--text-color-link-active);
+}
+
+main {
+	padding: 1rem;
+}
+main :first-child {
+	margin-top: 0;
+}
+
+header {
+	border-bottom: 1px dashed var(--color-gray-20);
+}
+header:after {
+	content: "";
+	display: table;
+	clear: both;
+}
+
+.links-nextprev {
+	list-style: none;
+	border-top: 1px dashed var(--color-gray-20);
+	padding: 1em 0;
+}
+
+table {
+	margin: 1em 0;
+}
+table td,
+table th {
+	padding-right: 1em;
+}
+
+pre,
+code {
+	font-family: var(--font-family-monospace);
+}
+pre:not([class*="language-"]) {
+	margin: .5em 0;
+	line-height: 1.375; /* 22px /16 */
+	-moz-tab-size: var(--syntax-tab-size);
+	-o-tab-size: var(--syntax-tab-size);
+	tab-size: var(--syntax-tab-size);
+	-webkit-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+	direction: ltr;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+}
+code {
+	word-break: break-all;
+}
+
+/* Header */
+header {
+	display: flex;
+	gap: 1em .5em;
+	flex-wrap: wrap;
+	align-items: center;
+	padding: 1em;
+}
+.home-link {
+	font-size: 1em; /* 16px /16 */
+	font-weight: 700;
+	margin-right: 2em;
+}
+.home-link:link:not(:hover) {
+	text-decoration: none;
+}
+
+/* Nav */
+.nav {
+	display: flex;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+.nav-item {
+	display: inline-block;
+	margin-right: 1em;
+}
+.nav-item a[href]:not(:hover) {
+	text-decoration: none;
+}
+.nav a[href][aria-current="page"] {
+	text-decoration: underline;
+}
+
+/* Posts list */
+.postlist {
+	list-style: none;
+	padding: 0;
+	padding-left: 1.5rem;
+}
+.postlist-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	counter-increment: start-from -1;
+	margin-bottom: 1em;
+}
+.postlist-item:before {
+	display: inline-block;
+	pointer-events: none;
+	content: "" counter(start-from, decimal-leading-zero) ". ";
+	line-height: 100%;
+	text-align: right;
+	margin-left: -1.5rem;
+}
+.postlist-date,
+.postlist-item:before {
+	font-size: 0.8125em; /* 13px /16 */
+	color: var(--color-gray-90);
+}
+.postlist-date {
+	word-spacing: -0.5px;
+}
+.postlist-link {
+	font-size: 1.1875em; /* 19px /16 */
+	font-weight: 700;
+	flex-basis: calc(100% - 1.5rem);
+	padding-left: .25em;
+	padding-right: .5em;
+	text-underline-position: from-font;
+	text-underline-offset: 0;
+	text-decoration-thickness: 1px;
+}
+.postlist-item-active .postlist-link {
+	font-weight: bold;
+}
+
+/* Tags */
+.post-tag {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	text-transform: capitalize;
+	font-style: italic;
+}
+.postlist-item > .post-tag {
+	align-self: center;
+}
+
+/* Tags list */
+.post-metadata {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: .5em;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+.post-metadata time {
+	margin-right: 1em;
+}
+
+/* Direct Links / Markdown Headers */
+.header-anchor {
+	text-decoration: none;
+	font-style: normal;
+	font-size: 1em;
+	margin-left: .1em;
+}
+a[href].header-anchor,
+a[href].header-anchor:visited {
+	color: transparent;
+}
+a[href].header-anchor:focus,
+a[href].header-anchor:hover {
+	text-decoration: underline;
+}
+a[href].header-anchor:focus,
+:hover > a[href].header-anchor {
+	color: #aaa;
+}
+
+h2 + .header-anchor {
+	font-size: 1.5em;
+}</style>
+	</head>
+	<body>
+		<a href="#skip" class="visually-hidden">Skip to main content</a>
+
+		<header>
+			<a href="/eleventy-base-blog/" class="home-link">Benoit Tigeot&#39;s blog</a>
+			<nav>
+				<h2 class="visually-hidden">Top level navigation menu</h2>
+				<ul class="nav">
+					<li class="nav-item"><a href="/eleventy-base-blog/">Home</a></li>
+					<li class="nav-item"><a href="/eleventy-base-blog/blog/">Archive</a></li>
+					<li class="nav-item"><a href="/eleventy-base-blog/about/">About Me</a></li>
+				</ul>
+			</nav>
+		</header>
+
+		<main id="skip">
+			
+<h1>As Rails developers, why we are excited about PostgreSQL 17</h1>
+
+<ul class="post-metadata">
+	<li><time datetime="2024-09-19">19 September 2024</time></li>
+	<li><a href="/eleventy-base-blog/tags/postgresql/" class="post-tag">PostgreSQL</a>, </li>
+	<li><a href="/eleventy-base-blog/tags/performance/" class="post-tag">Performance</a>, </li>
+	<li><a href="/eleventy-base-blog/tags/rails/" class="post-tag">Rails</a></li>
+</ul>
+
+<p>At the time of writing this article, PostgreSQL 17 is nearly out. <a href="https://www.postgresql.org/about/news/postgresql-17-rc1-released-2926/">On September 5th, the first release candidate was published</a>. The final release is expected on September 26th, but we can already explain why we’ve been eagerly awaiting this release since 1 year.</p>
+<p>At <a href="https://www.lifen.fr/">Lifen</a>, we’ve loved Rails from the beginning. We have several Rails applications, each with different scopes and teams, all using PostgreSQL as the main database. Some of these applications handle a significant amount of traffic, and their databases need to be properly monitored. This is done by the infrastructure team and the developers themselves using PgAnalyze, Grafana and sometimes AWS console with &quot;Performance Insight&quot;.</p>
+<p>More than a year ago, we started monitoring the 95th and 99th percentile response times (p95, p99) on an endpoint that was experiencing timeouts. These p99 times were important because they involved a client with significantly more data. While investigating the queries in AppSignal, we quickly found that the issue was on the database side, as is often the case.</p>
+<p>The problematic query involved one table with over 40 GB of data, which was heavily distributed. The query in Rails looked like this:</p>
+<pre class="language-ruby" tabindex="0"><code class="language-ruby">Doc<span class="token punctuation">.</span>where<span class="token punctuation">(</span><span class="token symbol">status</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token string-literal"><span class="token string">'draft'</span></span><span class="token punctuation">,</span><span class="token string-literal"><span class="token string">'sent'</span></span><span class="token punctuation">]</span><span class="token punctuation">,</span> <span class="token symbol">sender_reference</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token string-literal"><span class="token string">'Client/1'</span></span><span class="token punctuation">,</span> <span class="token string-literal"><span class="token string">'Client/2'</span></span><span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">.</span>order<span class="token punctuation">(</span><span class="token symbol">sent_at</span><span class="token operator">:</span> <span class="token symbol">:desc</span><span class="token punctuation">)</span><span class="token punctuation">.</span>limit<span class="token punctuation">(</span><span class="token number">20</span><span class="token punctuation">)</span></code></pre>
+<p>Pretty simple, right?</p>
+<p>Due to the nature of ActiveRecord DSL, this is something you see often, but without fully understanding the limitations of the underlying database. And those limitations can be surprising.</p>
+<p>When fetching many documents, the query was very slow. We looked at the EXPLAIN plans and quickly identified the issue: <strong>not all indexes were being used.</strong></p>
+<p>You see plan like this one</p>
+<pre class="language-markdown" tabindex="0"><code class="language-markdown">  ->  Index Scan using docs_sent_at_idx on public.docs  (cost=0.56..39748945.58 rows=29744 width=38) (actual time=116.924..218.784 rows=20 loops=1)
+        Output: id, type, status, sender_reference, sent_at, created_at
+        Filter: (((docs.status)::text = ANY ('{draft,sent}'::text[])) AND ((docs.sender_reference)::text = ANY ('{Client/1,Client/2}'::text[])))
+        Rows Removed by Filter: 46354
+        Buffers: shared hit=1421 read=45046</code></pre>
+<p>Index is used but you still need to perform expensive filtering.</p>
+<p>After some exchanges with some great folks on the PostgreSQL Slack, it was mentioned that <strong>PostgreSQL is not optimized for queries with multiple IN or ANY query parameters</strong>. This was a problem, as such queries are common in Rails applications and aren’t easily optimized using indexes in PostgreSQL. But then, something unexpected happened…</p>
+<p>I received a private message from <a href="https://github.com/petergeoghegan">Peter Geoghegan</a>. He was working on a patch that could help solve my issue. I tested the first version, then a second, and the results were very impressive, with a 90% reduction in query time (from 110ms to 10ms for some data). Indexes were fully utilized.</p>
+<p>The patch is well explained <a href="https://pganalyze.com/blog/5mins-postgres-17-faster-btree-index-scans">in a blog post on PgAnalyze</a> but the changelog entry speaks for itself: “Allow B-tree indexes to more efficiently find a set of values, such as those supplied by IN clauses using constants.”</p>
+<p>Many iterations were made on this patch. I provided feedback on the PostgreSQL hackers <a href="https://www.postgresql.org/message-id/flat/CAHUgstCm94QCN3hrLgU9SkVxhLiuh2G_HsksffZwZWHhzJEreg%40mail.gmail.com#f3af55f2367f6477256fcea40ce586a8">mailing list</a>, explaining why I, as a developer, was interested in this patch, along with benchmarks and execution plan outputs. The patch was included in PostgreSQL 17 beta, and additional fixes were added.</p>
+<p>With RC1 and a basic Rails application, here’s the improvement we saw:
+We inserted 100 million rows into a table with three columns. This was done via SQL, but it could have been done in Rails as well.</p>
+<pre class="language-sql" tabindex="0"><code class="language-sql"><span class="token keyword">INSERT</span> <span class="token keyword">INTO</span>
+  docs <span class="token punctuation">(</span><span class="token keyword">status</span><span class="token punctuation">,</span> sender_reference<span class="token punctuation">,</span> sent_at<span class="token punctuation">,</span> created_at<span class="token punctuation">,</span> updated_at<span class="token punctuation">)</span>
+<span class="token keyword">SELECT</span>
+  <span class="token punctuation">(</span><span class="token string">'{sent,draft,suspended}'</span>::<span class="token keyword">text</span><span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">[</span>ceil<span class="token punctuation">(</span>random<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">*</span><span class="token number">3</span><span class="token punctuation">)</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+  <span class="token punctuation">(</span><span class="token string">'{Custom,Client}'</span>::<span class="token keyword">text</span><span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">[</span>ceil<span class="token punctuation">(</span>random<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">*</span><span class="token number">2</span><span class="token punctuation">)</span><span class="token punctuation">]</span> <span class="token operator">||</span> <span class="token string">'/'</span> <span class="token operator">||</span> floor<span class="token punctuation">(</span>random<span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">*</span> <span class="token number">2000</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+  <span class="token punctuation">(</span>LOCALTIMESTAMP <span class="token operator">-</span> <span class="token keyword">interval</span> <span class="token string">'2 years'</span> <span class="token operator">*</span> random<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>::timestamptz<span class="token punctuation">,</span>
+  LOCALTIMESTAMP<span class="token punctuation">,</span>
+  LOCALTIMESTAMP
+<span class="token keyword">FROM</span> generate_series<span class="token punctuation">(</span><span class="token number">1</span><span class="token punctuation">,</span> <span class="token number">100</span>_000_000<span class="token punctuation">)</span> g<span class="token punctuation">;</span></code></pre>
+<p>Those columns are indexed with a multicolumn index.</p>
+<pre class="language-ruby" tabindex="0"><code class="language-ruby">add_index <span class="token symbol">:docs</span><span class="token punctuation">,</span> <span class="token punctuation">[</span><span class="token symbol">:sender_reference</span><span class="token punctuation">,</span> <span class="token symbol">:status</span><span class="token punctuation">,</span> <span class="token symbol">:sent_at</span><span class="token punctuation">]</span><span class="token punctuation">,</span> <span class="token symbol">algorithm</span><span class="token operator">:</span> <span class="token symbol">:concurrently</span></code></pre>
+<p>With PostgreSQL 16 on a Rails 7.2 app, after several queries and with a warm cache, the response time was:</p>
+<blockquote>
+<p>Query executed in 8.45 seconds.</p>
+</blockquote>
+<p>With PostgreSQL 17, the result is 🥁:</p>
+<blockquote>
+<p>Query executed in 0.11 seconds.</p>
+</blockquote>
+<p>The query can still be optimized to get closer to 10ms, but the most challenging part to optimize has already been addressed by the patch.</p>
+<p>With results like these, I highly encourage you to upgrade to PostgreSQL 17. There are many <a href="https://www.postgresql.org/docs/17/release-17.html">other improvements</a> as well. I also recommend digging deeper into the database side of your application, as this is often the key to faster response times. I’ve learned that developers are welcome to share their feedback on the PostgreSQL hackers’ mailing list, providing benchmarks and feedback as end users.</p>
+<p>Thanks to Peter Geoghegan, Matthias van de Meent, Hubert Depesz, Ants Aasma, and the rest of the PostgreSQL community for their work over the past year.</p>
+<p>If you’d like to follow the benchmarks made since last year, there is a <a href="https://gist.github.com/benoittgt/ab72dc4cfedea2a0c6a5ee809d16e04d">gist</a>. You can also find the Rails app used to test response times <a href="https://github.com/benoittgt/thanks-peter">on Github</a>.</p>
+
+
+		</main>
+
+		<footer></footer>
+
+		<!-- This page `/eleventy-base-blog/blog/postgres_17_rails/` was built on 2024-09-24T20:29:41.239Z -->
+	</body>
+</html>
