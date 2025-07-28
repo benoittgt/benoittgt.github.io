@@ -506,7 +506,7 @@ h2 + .header-anchor {
   hash_key <span class="token operator">=</span> <span class="token string-literal"><span class="token string">"step:</span><span class="token interpolation"><span class="token delimiter punctuation">#{</span><span class="token content">step_id</span><span class="token delimiter punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">.</span>hash<span class="token punctuation">.</span>abs
 
   ActiveRecord<span class="token double-colon punctuation">::</span>Base<span class="token punctuation">.</span>transaction <span class="token keyword">do</span>
-    connection<span class="token punctuation">.</span>execute<span class="token punctuation">(</span><span class="token string-literal"><span class="token string">"SELECT pg_advisory_xact_lock(</span><span class="token interpolation"><span class="token delimiter punctuation">#{</span><span class="token content">connection<span class="token punctuation">.</span>quote<span class="token punctuation">(</span>hash_key<span class="token punctuation">)</span></span><span class="token delimiter punctuation">}</span></span><span class="token string">)"</span></span><span class="token punctuation">)</span>
+    connection<span class="token punctuation">.</span>select_all<span class="token punctuation">(</span><span class="token string-literal"><span class="token string">"SELECT pg_advisory_xact_lock(</span><span class="token interpolation"><span class="token delimiter punctuation">#{</span><span class="token content">connection<span class="token punctuation">.</span>quote<span class="token punctuation">(</span>hash_key<span class="token punctuation">)</span></span><span class="token delimiter punctuation">}</span></span><span class="token string">)"</span></span><span class="token punctuation">)</span>
     lock_duration <span class="token operator">=</span> <span class="token builtin">Time</span><span class="token punctuation">.</span>current <span class="token operator">-</span> start_time
 
     query_start <span class="token operator">=</span> <span class="token builtin">Time</span><span class="token punctuation">.</span>current
@@ -557,6 +557,6 @@ h2 + .header-anchor {
 
 		<footer></footer>
 
-		<!-- This page `/blog/postgres_measuring_lock/` was built on 2025-07-28T16:21:34.962Z -->
+		<!-- This page `/blog/postgres_measuring_lock/` was built on 2025-07-28T22:13:55.801Z -->
 	</body>
 </html>
