@@ -4,12 +4,93 @@
 	<subtitle>Ruby on Rails, PostgreSQL, and more.</subtitle>
 	<link href="https://benoittgt.github.io/feed.xml" rel="self"/>
 	<link href="https://benoittgt.github.io/"/>
-	<updated>2024-09-19T00:00:00Z</updated>
+	<updated>2025-07-28T00:00:00Z</updated>
 	<id>https://benoittgt.github.io/</id>
 	<author>
 		<name>Benoit Tigeot</name>
 		<email>&lt;firstname.lastname@gmail.com&gt;</email>
 	</author>
+	
+	<entry>
+		<title>Measuring SELECT ... FOR UPDATE Latency in PostgreSQL</title>
+		<link href="https://benoittgt.github.io/blog/postgres_measuring_lock/"/>
+		<updated>2025-07-28T00:00:00Z</updated>
+		<id>https://benoittgt.github.io/blog/postgres_measuring_lock/</id>
+		<content type="html">&lt;p&gt;At &lt;a href=&quot;https://www.lifen.fr/&quot;&gt;Lifen&lt;/a&gt;, we love digging into database performance issues. Recently, while monitoring one of our Rails applications using PgAnalyze and specific logging, we noticed something concerning: around &lt;strong&gt;13–16% of a basic but frequently run query&lt;/strong&gt; was taking more than 100ms to complete… and sometimes up to 1500ms. The culprit? &lt;code&gt;SELECT ... FOR UPDATE&lt;/code&gt; queries that were experiencing intermittent slowdowns. The average time was normally 6ms.&lt;/p&gt;
+&lt;h3 id=&quot;slow-lock-acquisition&quot; tabindex=&quot;-1&quot;&gt;Slow lock &lt;strong&gt;acquisition&lt;/strong&gt; ? &lt;a class=&quot;header-anchor&quot; href=&quot;https://benoittgt.github.io/blog/postgres_measuring_lock/&quot;&gt;#&lt;/a&gt;&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;SELECT ... FOR UPDATE&lt;/code&gt; &lt;a href=&quot;https://www.postgresql.org/docs/current/sql-select.html&quot;&gt;is used to acquire a lock&lt;/a&gt; on row during a transaction. We use it to prevent concurrent async tasks from modifying the same row. This can happen, for example, when consuming lots of events from a queue system with an “at least once” delivery guarantee.&lt;/p&gt;
+&lt;p&gt;The obvious question was: &lt;em&gt;Are these queries slow because they’re waiting to acquire locks, or because they’re taking a long time to find the actual rows?&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;This distinction matters a lot. If it’s &lt;strong&gt;lock contention&lt;/strong&gt;, we need to optimize our locking strategy. If it’s &lt;strong&gt;row lookup performance&lt;/strong&gt;, we need better indexes or query optimizations.&lt;/p&gt;
+&lt;p&gt;PostgreSQL&#39;s built-in &lt;code&gt;log_lock_waits&lt;/code&gt; parameter seemed like the natural solution, but it requires setting a low &lt;code&gt;deadlock_timeout&lt;/code&gt;, which makes it impractical for production environments. We needed a different approach.&lt;/p&gt;
+&lt;p&gt;From the doc on &lt;code&gt;log_lock_waits&lt;/code&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Controls whether a log message is produced when a session waits longer than &lt;a href=&quot;https://www.postgresql.org/docs/17/runtime-config-locks.html#GUC-DEADLOCK-TIMEOUT&quot;&gt;&lt;strong&gt;deadlock_timeout&lt;/strong&gt;&lt;/a&gt; to acquire a lock.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id=&quot;measuring&quot; tabindex=&quot;-1&quot;&gt;Measuring &lt;a class=&quot;header-anchor&quot; href=&quot;https://benoittgt.github.io/blog/postgres_measuring_lock/&quot;&gt;#&lt;/a&gt;&lt;/h3&gt;
+&lt;p&gt;To distinguish between lock acquisition time and row lookup time, we replaced the &lt;code&gt;FOR UPDATE&lt;/code&gt; with a &lt;code&gt;pg_advisory_xact_lock&lt;/code&gt;, then monitored both parts of the query separately.&lt;/p&gt;
+&lt;p&gt;The SQL transformation looked like this:&lt;/p&gt;
+&lt;pre class=&quot;language-sql&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-sql&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;-- Original&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;BEGIN&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;SELECT&lt;/span&gt; id &lt;span class=&quot;token keyword&quot;&gt;FROM&lt;/span&gt; steps &lt;span class=&quot;token keyword&quot;&gt;WHERE&lt;/span&gt; id &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;123&lt;/span&gt;_456 &lt;span class=&quot;token keyword&quot;&gt;FOR&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;UPDATE&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;token comment&quot;&gt;-- this is sometime slow&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;UPDATE&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&#39;in_progress&#39;&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;FROM&lt;/span&gt; steps &lt;span class=&quot;token keyword&quot;&gt;WHERE&lt;/span&gt; id &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;123&lt;/span&gt;_456&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;COMMIT&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;-- Temporary new version&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;BEGIN&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;SELECT&lt;/span&gt; pg_advisory_xact_lock&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;hashtext&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&#39;update step status&#39;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; hashtext&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&#39;123456&#39;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;UPDATE&lt;/span&gt; steps &lt;span class=&quot;token keyword&quot;&gt;SET&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&#39;in_progress&#39;&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;WHERE&lt;/span&gt; id &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;123&lt;/span&gt;_456&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;COMMIT&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And in the Rails app:&lt;/p&gt;
+&lt;pre class=&quot;language-ruby&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-ruby&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token method-definition&quot;&gt;&lt;span class=&quot;token function&quot;&gt;process_with_xact_lock&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;step_id&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+  start_time &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;current
+  hash_key &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token string-literal&quot;&gt;&lt;span class=&quot;token string&quot;&gt;&quot;step:&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;token content&quot;&gt;step_id&lt;/span&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;hash&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;abs
+
+  ActiveRecord&lt;span class=&quot;token double-colon punctuation&quot;&gt;::&lt;/span&gt;Base&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;transaction &lt;span class=&quot;token keyword&quot;&gt;do&lt;/span&gt;
+    connection&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;execute&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string-literal&quot;&gt;&lt;span class=&quot;token string&quot;&gt;&quot;SELECT pg_advisory_xact_lock(&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;token content&quot;&gt;connection&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;quote&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;hash_key&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;)&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    lock_duration &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;current &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt; start_time
+
+    query_start &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;current
+    step &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; Step&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;find&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;step_id&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    query_duration &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;current &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt; query_start
+
+    step&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;update&lt;span class=&quot;token operator&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token symbol&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string-literal&quot;&gt;&lt;span class=&quot;token string&quot;&gt;&#39;in_progress&#39;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    log_timing&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;step_id&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; lock_duration&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; query_duration&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; slow_operation&lt;span class=&quot;token operator&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;lock_duration&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; query_duration&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# ...&lt;/span&gt;
+  &lt;span class=&quot;token keyword&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;token keyword&quot;&gt;private&lt;/span&gt;
+
+&lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token method-definition&quot;&gt;&lt;span class=&quot;token function&quot;&gt;slow_operation&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;?&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;lock_time&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; query_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;lock_time &lt;span class=&quot;token operator&quot;&gt;+&lt;/span&gt; query_time&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;0.1&lt;/span&gt; &lt;span class=&quot;token comment&quot;&gt;# 100ms threshold&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token method-definition&quot;&gt;&lt;span class=&quot;token function&quot;&gt;log_timing&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;id&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; lock_ms&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; query_ms&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+  Rails&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;logger&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;warn&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;token string-literal&quot;&gt;&lt;span class=&quot;token string&quot;&gt;&quot;Slow operation: id=&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;token content&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt; lock=&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;token content&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;lock_ms&lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;1000&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;round&lt;/span&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;ms query=&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;token content&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;query_ms&lt;span class=&quot;token operator&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;1000&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;round&lt;/span&gt;&lt;span class=&quot;token delimiter punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;ms&quot;&lt;/span&gt;&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token method-definition&quot;&gt;&lt;span class=&quot;token function&quot;&gt;connection&lt;/span&gt;&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; ActiveRecord&lt;span class=&quot;token double-colon punctuation&quot;&gt;::&lt;/span&gt;Base&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;connection
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The code is not bulletproof, but we only used it for a short period to gather data. We knew the chance of lock issues was low, and it was acceptable for this part of the application.&lt;/p&gt;
+&lt;h3 id=&quot;what-we-learned&quot; tabindex=&quot;-1&quot;&gt;&lt;strong&gt;What we learned&lt;/strong&gt; &lt;a class=&quot;header-anchor&quot; href=&quot;https://benoittgt.github.io/blog/postgres_measuring_lock/&quot;&gt;#&lt;/a&gt;&lt;/h3&gt;
+&lt;p&gt;The results were interesting: when we experienced slowdowns with &lt;code&gt;SELECT ... FOR UPDATE&lt;/code&gt;, we &lt;strong&gt;also&lt;/strong&gt; saw slowness with the new &lt;code&gt;pg_advisory_xact_lock&lt;/code&gt; version both on &lt;strong&gt;lock acquisition&lt;/strong&gt; and &lt;strong&gt;row lookup&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;So, &lt;strong&gt;latency is global&lt;/strong&gt;, not specific to one part of the mechanism. That means we needed to look into other database activity that could be causing this broader slowdown.&lt;/p&gt;
+&lt;p&gt;In our case, it appeared related to heavy DML activity and &lt;a href=&quot;https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/wait-event.iowalwrite.html&quot;&gt;IO:WALWrite&lt;/a&gt;. To mitigate this, we’re now looking at reducing the number of INSERT and UPDATE queries by grouping them.&lt;/p&gt;
+&lt;h3 id=&quot;key-takeaways&quot; tabindex=&quot;-1&quot;&gt;Key Takeaways &lt;a class=&quot;header-anchor&quot; href=&quot;https://benoittgt.github.io/blog/postgres_measuring_lock/&quot;&gt;#&lt;/a&gt;&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Separate concerns when debugging&lt;/strong&gt;: Don&#39;t assume slow &lt;code&gt;SELECT ... FOR UPDATE&lt;/code&gt; means lock contention. Measure lock acquisition and query execution independently.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Production-friendly monitoring&lt;/strong&gt;: This technique works in production without requiring changes to PostgreSQL configuration like &lt;code&gt;deadlock_timeout&lt;/code&gt;. We hope that it will be possible to let PostgreSQL report this by itself (see &lt;a href=&quot;https://www.postgresql.org/message-id/flat/b8b8502915e50f44deb111bc0b43a99e2733e117.camel%40cybertec.at&quot;&gt;discussion on pg-hackers&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;pg_advisory_xact_lock is a great tool for precise, manual locking.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If you’re experiencing similar issues with SELECT ... FOR UPDATE, first check your logs, database metrics, and DML activity. Then try this measurement approach, you might discover, like we did, that the real bottleneck is elsewhere.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;em&gt;Thanks to the PostgreSQL community on Slack for the debugging suggestions that led to this technique.&lt;/em&gt;&lt;/p&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>As Rails developers, why we are excited about PostgreSQL 17</title>
