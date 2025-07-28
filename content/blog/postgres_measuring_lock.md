@@ -53,7 +53,7 @@ def process_with_xact_lock(step_id)
   hash_key = "step:#{step_id}".hash.abs
 
   ActiveRecord::Base.transaction do
-    connection.execute("SELECT pg_advisory_xact_lock(#{connection.quote(hash_key)})")
+    connection.select_all("SELECT pg_advisory_xact_lock(#{connection.quote(hash_key)})")
     lock_duration = Time.current - start_time
 
     query_start = Time.current
